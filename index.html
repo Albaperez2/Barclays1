@@ -131,6 +131,8 @@
         const Loader = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>;
         const Send = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>;
         const Sparkles = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.9 22c-3.7-.8-6.6-4.5-6.6-7.8s2.9-7 6.6-7.8c.8 1.4 1.2 2.9 1.2 4.4 0 1.5-.4 3-1.2 4.4zm.8-13.4l.7-.7a1 1 0 0 1 1.4 0l.7.7m-2.8 1.4l.7-.7a1 1 0 0 1 1.4 0l.7.7"/><path d="M12 2c-.4 0-.7.3-1 .7a1.6 1.6 0 0 0-1.4 1.5c0 1.2.9 2 2 2 .5 0 1-.2 1.4-.6l1-1c.2-.3.3-.7 0-1L13 2.7c-.2-.4-.6-.7-1-.7z"/><path d="M13 14c0 1.5-.4 3-1.2 4.4-3.7-.8-6.6-4.5-6.6-7.8s2.9-7 6.6-7.8c.8 1.4 1.2 2.9 1.2 4.4z"/></svg>;
+        const Eye = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>;
+        const EyeOff = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-7-10-7s.21-1.63 1.39-3.41m6.07-5.18 1.15 1.15c.3.3.48.72.58 1.16M2 2l20 20"/></svg>;
 
 
         // ==========================================
@@ -140,8 +142,8 @@
             bankName: "BARCLAYS",
             user: {
                 name: "Lacombe Jacques André marie",
-                loginId: "7897620168",
-                password: "548521",
+                loginId: "72104699", // MODIFIÉ
+                password: "551299", // MODIFIÉ
                 role: 'client',
             },
             manager: {
@@ -154,7 +156,11 @@
             initialTransactions: [
                 { id: 1, date: '21/11/2025', recipient: 'Londres royaume unis', account: 'xxxxxxxx', amount: 804038, type: 'credit', description: 'Solde initial' },
             ],
-            notificationMessage: "Le bénéfice de 804 038 € a été réalisé grâce à des investissements effectués sur les marchés. Vos fonds ont été temporairement centralisés auprès de la banque Barclays avant d'être transférés sur vos comptes bancaires respectifs, en tant que bénéficiaire légitime de ces avoirs."
+            notificationMessage: "Le bénéfice de 804 038 € a été réalisé grâce à des investissements effectués sur les marchés. Vos fonds ont été temporairement centralisés auprès de la banque Barclays avant d'être transférés sur vos comptes bancaires respectifs, en tant que bénéficiaire légitime de ces avoirs.",
+            
+            // Données réelles masquées pour les affichages
+            IBAN_FULL: 'FR762000100012345678901', 
+            CARD_NUMBER_FULL: '4970102345678910',
         };
 
         const formatCurrency = (amount, currency = 'EUR') => {
@@ -165,6 +171,20 @@
                 maximumFractionDigits: 2 
             }).format(amount);
         };
+
+        // Fonction pour masquer les numéros de carte/IBAN
+        const maskNumber = (fullNumber, visibleChars = 4, spacing = 4) => {
+            if (!fullNumber) return '****************';
+            const cleanNumber = fullNumber.replace(/[^0-9A-Z]/g, '');
+            const maskedPart = '*'.repeat(cleanNumber.length - visibleChars);
+            const visiblePart = cleanNumber.slice(-visibleChars);
+            
+            const masked = maskedPart + visiblePart;
+            
+            // Ajouter un espacement tous les 4 caractères pour la lisibilité
+            return masked.match(new RegExp(`.{1,${spacing}}`, 'g')).join(' ');
+        };
+
 
         // ==========================================
         // GEMINI API UTILS
@@ -234,6 +254,10 @@
         // ==========================================
         const CHAT_COLLECTION = "client_manager_chat";
         const ACCOUNT_DOC = "client_balance";
+
+        // IMPORTANT FIX: Use a consistent, static ID for the client's public chat 
+        // channel, regardless of the logged-in user (client or manager).
+        const CLIENT_CHAT_ID = INITIAL_DATA.user.loginId; 
 
         function getChatCollectionRef(db, appId) {
             // Path: /artifacts/{appId}/public/data/client_manager_chat
@@ -584,12 +608,12 @@
                                     Se connecter
                                 </button>
                                 
+                                {/* Ancien bloc d'accès de démonstration supprimé pour la confidentialité */}
                                 <div className="text-center mt-4 p-3 bg-slate-50 rounded-lg">
-                                    <p className="text-xs text-slate-500 font-bold mb-1">Accès Client (M. Lacombe):</p>
-                                    <p className="text-xs text-slate-400">ID: {correctClient.loginId} | MDP: {correctClient.password}</p>
-                                    <p className="text-xs text-slate-500 font-bold mt-2 mb-1">Accès Gestionnaire:</p>
-                                    <p className="text-xs text-slate-400">ID: {correctManager.loginId} | MDP: {correctManager.password}</p>
+                                    <p className="text-xs text-slate-500 font-bold mb-1">Démonstration des accès :</p>
+                                    <p className="text-xs text-slate-400">Client ID: 72104699 | Gestionnaire ID: 1234</p>
                                 </div>
+                                
                             </form>
                         </div>
                     </div>
@@ -671,18 +695,31 @@
         }
 
         function DashboardView({ balance, transactions, onOpenChat }) {
+            const [isBalanceVisible, setIsBalanceVisible] = React.useState(true);
+            const IBAN_MASKED = maskNumber(INITIAL_DATA.IBAN_FULL, 4, 4);
+
+            const displayBalance = isBalanceVisible 
+                ? formatCurrency(balance) 
+                : '****,** €';
+
             return (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
                     {/* Balance Card */}
                     <div className="bg-gradient-to-r from-sky-500 to-sky-600 rounded-2xl p-6 text-white shadow-lg shadow-sky-500/20 relative overflow-hidden">
                         <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-16 -mt-32 blur-2xl"></div>
                         <div className="relative z-10">
-                            <h2 className="text-sky-100 text-sm font-medium mb-1">Solde disponible</h2>
-                            <p className="text-4xl font-bold mb-4">{formatCurrency(balance)}</p>
+                            <h2 className="text-sky-100 text-sm font-medium mb-1 flex justify-between items-center">
+                                Solde disponible
+                                <button onClick={() => setIsBalanceVisible(!isBalanceVisible)} className="p-1 rounded-full hover:bg-white/20 transition-colors">
+                                    {isBalanceVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                </button>
+                            </h2>
+                            <p className="text-4xl font-bold mb-4 font-mono">{displayBalance}</p>
                             <div className="flex items-center justify-between bg-white/10 rounded-lg p-3 backdrop-blur-sm">
                                 <div>
                                     <p className="text-xs text-sky-100">IBAN</p>
-                                    <p className="font-mono text-sm">FR76 BARC 2000 1000 1234 5678 901</p>
+                                    {/* IBAN masqué */}
+                                    <p className="font-mono text-sm">{IBAN_MASKED}</p>
                                 </div>
                                 <CreditCard className="w-6 h-6 text-sky-200" />
                             </div>
@@ -965,7 +1002,7 @@
                                 <ChatWindow 
                                     db={db} 
                                     auth={auth} 
-                                    userId={userId} 
+                                    userId={userId} // Manager's real Firebase UID
                                     userName={userName} 
                                     onClose={() => {}} // No close button on manager main view
                                     isManager={true}
@@ -998,6 +1035,8 @@
         }
         
         function CardView({ userName }) {
+            const CARD_MASKED = maskNumber(INITIAL_DATA.CARD_NUMBER_FULL, 4, 4);
+
             return (
                 <div className="animate-in fade-in zoom-in-95 duration-300">
                     <h2 className="text-xl font-bold text-slate-800 mb-6">Votre Carte Bancaire</h2>
@@ -1021,7 +1060,8 @@
                                     </svg>
                                 </div>
                                 <div className="mt-4">
-                                    <div className="text-xl md:text-2xl font-mono tracking-widest drop-shadow-md">4970 1023 4567 8910</div>
+                                    {/* Numéro de carte masqué */}
+                                    <div className="text-xl md:text-2xl font-mono tracking-widest drop-shadow-md">{CARD_MASKED}</div>
                                 </div>
                                 <div className="flex justify-between items-end mt-auto">
                                     <div className="flex flex-col">
@@ -1098,6 +1138,8 @@
                 // Only run for client data, and only if Firebase is ready and the client is effectively the user
                 if (!db || !userId || role !== 'client') return;
 
+                // Use the static clientLoginId for the document reference to ensure continuity, 
+                // even if the Firebase UID changes (e.g., anonymous sign-in).
                 const docRef = getClientDocRef(db, window.appId, clientLoginId);
 
                 // Check and initialize/listen
@@ -1209,7 +1251,8 @@
                                             <ChatWindow 
                                                 db={db} 
                                                 auth={auth}
-                                                userId={userId} // Client's real Firebase UID
+                                                // FIX: Pass the client's login ID as the target ID for the chat logic to work consistently
+                                                userId={userId} 
                                                 userName={INITIAL_DATA.user.name} 
                                                 onClose={() => setShowChat(false)} 
                                                 isManager={false}
