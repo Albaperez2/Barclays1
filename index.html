@@ -51,10 +51,23 @@
             transform: rotate(90deg);
         }
 
-        /* Fix pour les écrans mobiles pour que la nav n'obstrue pas le contenu */
+        /* Espace de 80px au bas du contenu principal pour la navigation en pied de page */
+        .main-content {
+            padding-bottom: 80px; 
+        }
+        /* La fenêtre de chat en mode non-modale doit occuper l'espace principal et avoir la bonne marge */
+        .chat-container-main {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            padding-bottom: 80px; /* Laisser de l'espace pour la barre de navigation en bas */
+        }
+        /* Assurer que le chat en mode modale prend tout l'écran sur mobile */
         @media (max-width: 767px) {
-            .main-content {
-                padding-bottom: 80px; /* Espace pour la barre de navigation inférieure */
+            .chat-container-main {
+                padding-bottom: 0; /* Pas besoin de marge car la nav est superposée */
             }
         }
     </style>
@@ -68,18 +81,18 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, orderBy, limit, serverTimestamp, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, getDocs, orderBy, limit, serverTimestamp, setLogLevel, arrayUnion } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // Expose Firebase utilities globally for use in the main babel script
         window.firebase = {
             initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
             getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, 
-            query, where, getDocs, orderBy, limit, serverTimestamp, setLogLevel
+            query, where, getDocs, orderBy, limit, serverTimestamp, setLogLevel, arrayUnion
         };
         
-        // Configuration et Initialisation (Doit être dans le module)
+        // Configuration et Initialisation
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        // Corrected variable name: __firebase_config
+        // CORRECTION: Utilisation de __firebase_config
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {}; 
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
@@ -133,6 +146,8 @@
         const Sparkles = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9.9 22c-3.7-.8-6.6-4.5-6.6-7.8s2.9-7 6.6-7.8c.8 1.4 1.2 2.9 1.2 4.4 0 1.5-.4 3-1.2 4.4zm.8-13.4l.7-.7a1 1 0 0 1 1.4 0l.7.7m-2.8 1.4l.7-.7a1 1 0 0 1 1.4 0l.7.7"/><path d="M12 2c-.4 0-.7.3-1 .7a1.6 1.6 0 0 0-1.4 1.5c0 1.2.9 2 2 2 .5 0 1-.2 1.4-.6l1-1c.2-.3.3-.7 0-1L13 2.7c-.2-.4-.6-.7-1-.7z"/><path d="M13 14c0 1.5-.4 3-1.2 4.4-3.7-.8-6.6-4.5-6.6-7.8s2.9-7 6.6-7.8c.8 1.4 1.2 2.9 1.2 4.4z"/></svg>;
         const Eye = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>;
         const EyeOff = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-10-7-10-7s.21-1.63 1.39-3.41m6.07-5.18 1.15 1.15c.3.3.48.72.58 1.16M2 2l20 20"/></svg>;
+        const Mail = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>;
+        const Clipboard = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>;
 
 
         // ==========================================
@@ -142,8 +157,8 @@
             bankName: "BARCLAYS",
             user: {
                 name: "Lacombe Jacques André marie",
-                loginId: "72104699", // MODIFIÉ
-                password: "551299", // MODIFIÉ
+                loginId: "72104699",
+                password: "551299",
                 role: 'client',
             },
             manager: {
@@ -174,15 +189,18 @@
 
         // Fonction pour masquer les numéros de carte/IBAN
         const maskNumber = (fullNumber, visibleChars = 4, spacing = 4) => {
-            if (!fullNumber) return '****************';
+            if (!fullNumber) return '';
             const cleanNumber = fullNumber.replace(/[^0-9A-Z]/g, '');
             const maskedPart = '*'.repeat(cleanNumber.length - visibleChars);
             const visiblePart = cleanNumber.slice(-visibleChars);
             
-            const masked = maskedPart + visiblePart;
+            const masked = maskedPart;
             
             // Ajouter un espacement tous les 4 caractères pour la lisibilité
-            return masked.match(new RegExp(`.{1,${spacing}}`, 'g')).join(' ');
+            // Utiliser un pattern plus générique pour IBANs longs
+            const displayMasked = masked.match(new RegExp(`.{1,${spacing}}`, 'g')).join(' ');
+            
+            return displayMasked + ' ' + visiblePart;
         };
 
 
@@ -255,18 +273,97 @@
         const CHAT_COLLECTION = "client_manager_chat";
         const ACCOUNT_DOC = "client_balance";
 
-        // IMPORTANT FIX: Use a consistent, static ID for the client's public chat 
-        // channel, regardless of the logged-in user (client or manager).
-        const CLIENT_CHAT_ID = INITIAL_DATA.user.loginId; 
+        // IMPORTANT FIX for Netlify/Deployment: Use a consistent, static ID for the client's public chat 
+        // channel. Using the client's loginId ensures continuity across sessions and users (client/manager).
+        const CHAT_CHANNEL_ID = INITIAL_DATA.user.loginId; 
 
         function getChatCollectionRef(db, appId) {
-            // Path: /artifacts/{appId}/public/data/client_manager_chat
-            return window.firebase.collection(db, `artifacts/${appId}/public/data/${CHAT_COLLECTION}`);
+            // This collection will now hold documents named after the chat channel ID (the client's login ID)
+            // Path: /artifacts/{appId}/public/data/client_manager_chat/{CHAT_CHANNEL_ID}/messages
+            return window.firebase.collection(db, `artifacts/${appId}/public/data/${CHAT_COLLECTION}/${CHAT_CHANNEL_ID}/messages`);
         }
         
         function getClientDocRef(db, appId, userId) {
             // Path: /artifacts/{appId}/users/{userId}/account_data/client_balance
+            // This is for private client data
             return window.firebase.doc(db, `artifacts/${appId}/users/${userId}/account_data/${ACCOUNT_DOC}`);
+        }
+        
+        // ==========================================
+        // MODAL COMPONENTS
+        // ==========================================
+        function EmailModal({ isOpen, onClose, emailContent, isGenerating }) {
+            const [copied, setCopied] = React.useState(false);
+            
+            const handleCopy = () => {
+                // Use execCommand('copy') for better compatibility inside iframes
+                const el = document.createElement('textarea');
+                el.value = emailContent.subject + '\n\n' + emailContent.body;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand('copy');
+                document.body.removeChild(el);
+                
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+            };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-in fade-in duration-300">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg animate-in zoom-in-95 slide-in-from-bottom-4 flex flex-col max-h-[90vh]">
+                        <div className="p-4 border-b flex justify-between items-center bg-sky-500 rounded-t-xl">
+                            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                <Mail className="w-5 h-5" /> Email Formalisé IA
+                            </h3>
+                            <button onClick={onClose} className="text-white/80 hover:text-white p-1">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        
+                        <div className="p-6 overflow-y-auto flex-1">
+                            {isGenerating ? (
+                                <div className="flex flex-col items-center justify-center h-48 text-slate-500">
+                                    <Loader className="w-8 h-8 text-sky-500 mb-3" />
+                                    <p>Génération de l'e-mail...</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                                        <p className="text-sm font-semibold text-slate-600">Objet :</p>
+                                        <p className="font-medium text-slate-800">{emailContent.subject}</p>
+                                    </div>
+
+                                    <div className="p-3 bg-white border border-slate-200 rounded-lg shadow-inner">
+                                        <p className="whitespace-pre-wrap text-sm text-slate-700">{emailContent.body}</p>
+                                    </div>
+                                    
+                                    <p className="text-xs text-slate-500 italic">Veuillez copier le contenu ci-dessus avant de fermer la fenêtre.</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-4 border-t flex justify-end">
+                            <button 
+                                onClick={handleCopy}
+                                disabled={isGenerating}
+                                className="flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors disabled:bg-green-300 transform active:scale-[0.98]"
+                            >
+                                {copied ? (
+                                    <>
+                                        <Clipboard className="w-4 h-4" /> Copié !
+                                    </>
+                                ) : (
+                                    <>
+                                        <Clipboard className="w-4 h-4" /> Copier l'e-mail
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
         }
 
         // ==========================================
@@ -279,6 +376,8 @@
             const messagesEndRef = React.useRef(null);
             const [isSending, setIsSending] = React.useState(false);
             const [isBotResponding, setIsBotResponding] = React.useState(false); // New state for AI features
+            const [isEmailModalOpen, setIsEmailModalOpen] = React.useState(false);
+            const [emailDraft, setEmailDraft] = React.useState({ subject: '', body: '' });
 
             React.useEffect(() => {
                 if (!db || !userId) return;
@@ -421,6 +520,46 @@
                     setIsBotResponding(false);
                 }
             };
+            
+            // --- GEMINI AI Manager Feature: Generate Formal Email ---
+            const handleGenerateEmail = async () => {
+                if (isBotResponding) return;
+
+                setIsEmailModalOpen(true);
+                setIsBotResponding(true);
+                setEmailDraft({ subject: 'Génération en cours...', body: 'Veuillez patienter...' });
+
+                const draftText = input.trim() || "Je prends note de votre préoccupation et je vais vous fournir une réponse formelle dès que possible.";
+                
+                const fullPrompt = `Convertissez le brouillon de message suivant : "${draftText}" en un e-mail professionnel et formel. L'e-mail doit inclure un objet pertinent, une salutation formelle ("Cher M. Lacombe,"), le corps du texte (basé sur le brouillon fourni), et une clôture formelle ("Cordialement,") signée par le Gestionnaire Privé. Répondez uniquement avec l'Objet et le Corps de l'e-mail, séparés par une ligne vide.`;
+
+                const systemPrompt = "Vous êtes un assistant IA pour un Gestionnaire Privé de la banque Barclays. Vous transformez des notes ou des brouillons en communications clients formelles, professionnelles et structurées, en français.";
+
+                try {
+                    const result = await performGeminiApiCall(fullPrompt, systemPrompt, false);
+                    
+                    // Attempt to parse the result into subject and body
+                    const parts = result.text.split('\n\n');
+                    let subject = 'Objet généré par l\'IA';
+                    let body = result.text;
+                    
+                    if (parts.length >= 2) {
+                        // Assume the first part is the subject
+                        subject = parts[0].replace(/Objet\s*:\s*/i, '').trim();
+                        // Join the rest as the body
+                        body = parts.slice(1).join('\n\n');
+                    }
+                    
+                    setEmailDraft({ subject: subject, body: body });
+                    setInput(''); // Clear input after drafting the email
+                } catch (error) {
+                    console.error("AI Email call failed:", error);
+                    setEmailDraft({ subject: 'Erreur de génération', body: 'Impossible de générer l\'e-mail. Veuillez réessayer.' });
+                } finally {
+                    setIsBotResponding(false);
+                }
+            };
+            
             // --- End AI Features ---
 
             const ManagerBadge = ({ name }) => (
@@ -437,105 +576,119 @@
 
 
             return (
-                <div className={`fixed inset-0 bg-white z-50 flex flex-col md:absolute md:top-0 md:bottom-0 md:left-0 md:right-0 md:shadow-xl md:rounded-xl ${!isManager && 'animate-in fade-in slide-in-from-bottom-4'}`}>
-                    <div className="flex justify-between items-center p-4 border-b bg-sky-500 text-white rounded-t-xl shadow-md">
-                        <h2 className="text-lg font-bold flex items-center gap-2">
-                            <MessageSquare className="w-5 h-5" />
-                            {isManager ? 'Dialogue Client' : 'Discuter avec votre Gestionnaire'}
-                        </h2>
-                        <button onClick={onClose} className="p-2 rounded-full hover:bg-white/20 transition-colors">
-                            <X className="w-5 h-5" />
-                        </button>
-                    </div>
+                <>
+                    <EmailModal isOpen={isEmailModalOpen} onClose={() => setIsEmailModalOpen(false)} emailContent={emailDraft} isGenerating={isBotResponding} />
 
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
-                        {messages.length === 0 && (
-                            <div className="text-center p-6 text-slate-500 italic">
-                                Commencez une conversation. L'ID de conversation est basé sur l'application.
-                            </div>
-                        )}
-                        {messages.map((msg) => {
-                            const isMyMessage = msg.senderId === userId;
-                            const isBotMessage = msg.senderId === 'AI_BOT';
-                            const timeString = msg.timestamp.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-
-                            return (
-                                <div key={msg.id} className={`flex ${isMyMessage || isBotMessage ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-xs md:max-w-md p-3 rounded-xl shadow-md ${
-                                        isMyMessage 
-                                        ? 'bg-sky-500 text-white rounded-br-none' 
-                                        : (isBotMessage 
-                                            ? 'bg-purple-100 text-slate-800 rounded-bl-none border border-purple-200'
-                                            : 'bg-white text-slate-800 rounded-tl-none border border-slate-200')
-                                    }`}>
-                                        <div className={`text-xs mb-1 font-semibold flex items-center gap-2 ${isMyMessage ? 'text-sky-100' : 'text-slate-600'}`}>
-                                            {!isMyMessage && !isBotMessage && <ManagerBadge name={msg.senderName.split(' ')[0]} />}
-                                            {isBotMessage && <BotBadge />} 
-                                            {isMyMessage && msg.senderName.split(' ')[0]}
-                                        </div>
-                                        <p className="text-sm break-words whitespace-pre-wrap">
-                                            {msg.isPlaceholder && isBotResponding ? <Loader className="w-4 h-4 mr-2 inline-block text-purple-600" /> : null}
-                                            {msg.text}
-                                        </p>
-                                        <span className={`block text-right mt-1 ${isMyMessage ? 'text-xs text-sky-200' : (isBotMessage ? 'text-xs text-purple-400' : 'text-xs text-slate-400')}`}>
-                                            {timeString}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                        <div ref={messagesEndRef} />
-                    </div>
-
-                    <div className="p-4 border-t bg-white">
-                        {/* AI Features Row */}
-                        <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
-                            {!isManager && (
-                                <button
-                                    onClick={handleAIFinancialAdvice}
-                                    disabled={isBotResponding || messages.length === 0}
-                                    className="flex-shrink-0 text-xs px-3 py-2 bg-purple-500 text-white rounded-full font-medium hover:bg-purple-600 disabled:bg-purple-300 transition-colors flex items-center gap-1 shadow-md"
-                                >
-                                    <Sparkles className="w-3 h-3"/>
-                                    Aide Financière IA
-                                </button>
-                            )}
-                            {isManager && (
-                                <button
-                                    onClick={handleManagerDraftResponse}
-                                    disabled={isBotResponding}
-                                    className="flex-shrink-0 text-xs px-3 py-2 bg-purple-500 text-white rounded-full font-medium hover:bg-purple-600 disabled:bg-purple-300 transition-colors flex items-center gap-1 shadow-md"
-                                >
-                                    <Sparkles className="w-3 h-3"/>
-                                    Réponse Pro IA
-                                </button>
-                            )}
+                    <div className={`flex flex-col h-full ${!isManager && 'md:absolute md:top-0 md:left-0 md:right-0 md:bottom-0 md:rounded-xl'}`}>
+                        <div className="flex justify-between items-center p-4 border-b bg-sky-500 text-white rounded-t-xl shadow-md flex-shrink-0">
+                            <h2 className="text-lg font-bold flex items-center gap-2">
+                                <MessageSquare className="w-5 h-5" />
+                                {isManager ? 'Dialogue Client' : 'Discuter avec votre Gestionnaire'}
+                            </h2>
+                            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/20 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
                         </div>
 
-                        <form onSubmit={handleSendMessage} className="flex gap-3">
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Écrire un message..."
-                                className="flex-1 px-4 py-2.5 rounded-full border border-slate-200 focus:border-sky-500 focus:ring-1 focus:ring-sky-100 outline-none"
-                                disabled={isSending || isBotResponding || !db || !userId}
-                            />
-                            <button 
-                                type="submit" 
-                                className="p-3 bg-sky-500 hover:bg-sky-600 text-white rounded-full transition-colors disabled:bg-sky-300"
-                                disabled={isSending || isBotResponding || !input.trim() || !db || !userId}
-                            >
-                                {isSending ? <Loader className="w-5 h-5" /> : <Send className="w-5 h-5" />}
-                            </button>
-                        </form>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
+                            {messages.length === 0 && (
+                                <div className="text-center p-6 text-slate-500 italic">
+                                    Il n'y a pas encore de messages. Commencez la discussion !
+                                </div>
+                            )}
+                            {messages.map((msg) => {
+                                const isMyMessage = msg.senderId === userId;
+                                const isBotMessage = msg.senderId === 'AI_BOT';
+                                const timeString = msg.timestamp.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+
+                                return (
+                                    <div key={msg.id} className={`flex ${isMyMessage || isBotMessage ? 'justify-end' : 'justify-start'}`}>
+                                        <div className={`max-w-xs md:max-w-md p-3 rounded-xl shadow-md ${
+                                            isMyMessage 
+                                                ? 'bg-sky-500 text-white rounded-br-none' 
+                                                : (isBotMessage 
+                                                    ? 'bg-purple-100 text-slate-800 rounded-bl-none border border-purple-200'
+                                                    : 'bg-white text-slate-800 rounded-tl-none border border-slate-200')
+                                        }`}>
+                                            <div className={`text-xs mb-1 font-semibold flex items-center gap-2 ${isMyMessage ? 'text-sky-100' : 'text-slate-600'}`}>
+                                                {!isMyMessage && !isBotMessage && <ManagerBadge name={msg.senderName.split(' ')[0]} />}
+                                                {isBotMessage && <BotBadge />} 
+                                                {isMyMessage && msg.senderName.split(' ')[0]}
+                                            </div>
+                                            <p className="text-sm break-words whitespace-pre-wrap">
+                                                {msg.isPlaceholder && isBotResponding ? <Loader className="w-4 h-4 mr-2 inline-block text-purple-600" /> : null}
+                                                {msg.text}
+                                            </p>
+                                            <span className={`block text-right mt-1 ${isMyMessage ? 'text-xs text-sky-200' : (isBotMessage ? 'text-xs text-purple-400' : 'text-xs text-slate-400')}`}>
+                                                {timeString}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        <div className="p-4 border-t bg-white flex-shrink-0">
+                            {/* AI Features Row */}
+                            <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+                                {!isManager && (
+                                    <button
+                                        onClick={handleAIFinancialAdvice}
+                                        disabled={isBotResponding || messages.length === 0}
+                                        className="flex-shrink-0 text-xs px-3 py-2 bg-purple-500 text-white rounded-full font-medium hover:bg-purple-600 disabled:bg-purple-300 transition-colors flex items-center gap-1 shadow-md"
+                                    >
+                                        <Sparkles className="w-3 h-3"/>
+                                        Aide Financière IA
+                                    </button>
+                                )}
+                                {isManager && (
+                                    <>
+                                        <button
+                                            onClick={handleManagerDraftResponse}
+                                            disabled={isBotResponding || messages.filter(m => m.senderId !== userId && m.senderId !== 'AI_BOT').length === 0}
+                                            className="flex-shrink-0 text-xs px-3 py-2 bg-purple-500 text-white rounded-full font-medium hover:bg-purple-600 disabled:bg-purple-300 transition-colors flex items-center gap-1 shadow-md"
+                                        >
+                                            <Sparkles className="w-3 h-3"/>
+                                            Réponse Pro IA
+                                        </button>
+                                        <button
+                                            onClick={handleGenerateEmail}
+                                            disabled={isBotResponding || !input.trim()}
+                                            className="flex-shrink-0 text-xs px-3 py-2 bg-indigo-500 text-white rounded-full font-medium hover:bg-indigo-600 disabled:bg-indigo-300 transition-colors flex items-center gap-1 shadow-md"
+                                        >
+                                            <Mail className="w-3 h-3"/>
+                                            Email Formalisé IA
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+
+                            <form onSubmit={handleSendMessage} className="flex gap-3">
+                                <input
+                                    type="text"
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    placeholder="Écrire un message..."
+                                    className="flex-1 px-4 py-2.5 rounded-full border border-slate-200 focus:border-sky-500 focus:ring-1 focus:ring-sky-100 outline-none"
+                                    disabled={isSending || isBotResponding || !db || !userId}
+                                />
+                                <button 
+                                    type="submit" 
+                                    className="p-3 bg-sky-500 hover:bg-sky-600 text-white rounded-full transition-colors disabled:bg-sky-300"
+                                    disabled={isSending || isBotResponding || !input.trim() || !db || !userId}
+                                >
+                                    {isSending ? <Loader className="w-5 h-5" /> : <Send className="w-5 h-5" />}
+                                </button>
+                            </form>
+                        </div>
                     </div>
-                </div>
+                </>
             );
         }
 
         // ==========================================
-        // SOUS-COMPOSANTS
+        // VUES
         // ==========================================
 
         function LoginPage({ onLoginSuccess, correctClient, correctManager, bankName }) {
@@ -608,10 +761,9 @@
                                     Se connecter
                                 </button>
                                 
-                                {/* Ancien bloc d'accès de démonstration supprimé pour la confidentialité */}
-                                <div className="text-center mt-4 p-3 bg-slate-50 rounded-lg">
-                                    <p className="text-xs text-slate-500 font-bold mb-1">Démonstration des accès :</p>
-                                    <p className="text-xs text-slate-400">Client ID: 72104699 | Gestionnaire ID: 1234</p>
+                                <div className="text-center pt-2 text-xs text-slate-400">
+                                    <p>Client ID: 72104699 | Pass: 551299</p>
+                                    <p>Manager ID: 1234 | Pass: 123456</p>
                                 </div>
                                 
                             </form>
@@ -670,7 +822,8 @@
             ];
 
             return (
-                <nav className="md:w-64 bg-white border-r border-slate-200 flex md:flex-col justify-around md:justify-start fixed bottom-0 w-full md:relative md:h-auto z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] md:shadow-none p-2 md:p-4 gap-1 md:gap-2">
+                // La navigation est maintenant fixée en bas pour tous les appareils
+                <nav className="bg-white border-t border-slate-200 flex justify-around fixed bottom-0 w-full h-[70px] z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] p-2 md:p-4 gap-1">
                     {navItems.map((item) => {
                         const Icon = item.icon;
                         const isActive = currentView === item.id;
@@ -680,12 +833,12 @@
                             <button
                                 key={item.id}
                                 onClick={action}
-                                className={`flex flex-col md:flex-row items-center md:gap-3 p-2 md:px-4 md:py-3 rounded-lg transition-all w-full md:text-left text-xs md:text-sm font-medium
+                                className={`flex flex-col items-center md:flex-row md:gap-3 p-1 md:px-4 md:py-3 rounded-lg transition-all w-full md:text-left text-xs md:text-sm font-medium
                                     ${isActive && item.id !== 'chat'
                                         ? 'text-sky-600 bg-sky-50 md:bg-sky-50' 
                                         : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}`}
                             >
-                                <Icon className={`w-6 h-6 md:w-5 md:h-5 mb-1 md:mb-0 ${isActive && item.id !== 'chat' ? 'stroke-[2.5px]' : ''}`} />
+                                <Icon className={`w-6 h-6 md:w-5 md:h-5 mb-0.5 md:mb-0 ${isActive && item.id !== 'chat' ? 'stroke-[2.5px]' : ''}`} />
                                 <span>{item.label}</span>
                             </button>
                         );
@@ -700,7 +853,7 @@
 
             const displayBalance = isBalanceVisible 
                 ? formatCurrency(balance) 
-                : '****,** €';
+                : '*,** €';
 
             return (
                 <div className="space-y-6 animate-in fade-in zoom-in-95 duration-300">
@@ -788,15 +941,19 @@
             });
             const [message, setMessage] = React.useState(null);
             const [isLoading, setIsLoading] = React.useState(false);
+            const [showAIBtn, setShowAIBtn] = React.useState(false); // New state for AI button
+            const [isBotExplaining, setIsBotExplaining] = React.useState(false);
+            
             const db = window.firebaseReady ? window.db : null;
 
             const handleChange = (e) => {
                 const { name, value } = e.target;
                 const newValue = name === 'amount' && parseFloat(value) < 0 
-                                 ? Math.abs(parseFloat(value)) 
-                                 : value;
+                                     ? Math.abs(parseFloat(value)) 
+                                     : value;
                 setFormData({ ...formData, [name]: newValue });
                 setMessage(null);
+                setShowAIBtn(false); // Hide AI button on new input
             };
 
             const updateClientData = async (newBalance, newTransaction) => {
@@ -804,15 +961,53 @@
                 const docRef = getClientDocRef(db, window.appId, clientUserId);
 
                 try {
-                    await window.firebase.updateDoc(docRef, {
+                    // Fetch existing data to append transaction
+                    const docSnap = await window.firebase.getDoc(docRef);
+                    let existingTransactions = docSnap.exists() ? docSnap.data().transactions || [] : [];
+                    
+                    // Create new array with the new transaction added at the beginning
+                    const updatedTransactions = [newTransaction, ...existingTransactions.filter(tx => tx.id !== newTransaction.id).slice(0, 4)]; 
+
+                    await window.firebase.setDoc(docRef, {
                         balance: newBalance,
-                        transactions: window.firebase.arrayUnion(newTransaction),
+                        transactions: updatedTransactions,
                         lastUpdate: window.firebase.serverTimestamp()
-                    });
+                    }, { merge: true });
                 } catch (error) {
                     console.error("Error updating client data:", error);
                 }
             };
+            
+            // --- GEMINI AI Client Feature: Explain Fees ---
+            const handleExplainFees = async () => {
+                if (isBotExplaining) return;
+                
+                setIsBotExplaining(true);
+                const userQuery = `Expliquez-moi en trois phrases simples et professionnelles pourquoi mon virement international vers ${formData.recipientName} (IBAN: ${formData.iban.slice(-4)}) a échoué à cause de frais SWIFT de 1%, et quelle est la prochaine étape pour débloquer le montant de ${formatCurrency(parseFloat(formData.amount))} de manière sécurisée.`;
+                const systemPrompt = "Vous êtes un agent de support bancaire IA de Barclays. Votre rôle est de fournir des explications claires et de rassurer le client. La réponse doit être en français et ne doit pas dépasser 3 phrases concises et polies. N'ajoutez pas de salutation.";
+
+                try {
+                    const result = await performGeminiApiCall(userQuery, systemPrompt, false);
+                    
+                    setMessage({
+                        type: 'info',
+                        text: (
+                            <div className="text-sm">
+                                <p className="font-bold mb-2 flex items-center gap-2"><Sparkles className="w-4 h-4 text-purple-600"/> Explication du Conseiller IA</p>
+                                <p className="leading-relaxed">{result.text}</p>
+                            </div>
+                        )
+                    });
+                    
+                } catch (error) {
+                    console.error("AI Fee explanation failed:", error);
+                    setMessage({ type: 'error', text: "Erreur: Impossible d'obtenir l'explication IA. Veuillez contacter votre gestionnaire directement." });
+                } finally {
+                    setIsBotExplaining(false);
+                }
+            };
+            
+            // --- End AI Feature ---
 
             const handleSubmit = (e) => {
                 e.preventDefault();
@@ -820,11 +1015,13 @@
                 
                 if (!formData.recipientName || !formData.iban || amountNum <= 0) {
                     setMessage({ type: 'error', text: "Veuillez remplir les champs obligatoires (Montant, IBAN, Nom du bénéficiaire) avec des valeurs valides." });
+                    setShowAIBtn(false);
                     return;
                 }
                 
                 if (amountNum > balance) {
                     setMessage({ type: 'error', text: "Solde insuffisant pour effectuer ce virement." });
+                    setShowAIBtn(false);
                     return;
                 }
 
@@ -836,17 +1033,16 @@
                     setIsLoading(false);
                     
                     // --- SCENARIO: Forced SWIFT Failure ---
-                    // Hardcoded values to trigger a specific scenario, regardless of form input
                     const failedAmount = amountNum; 
                     const feeRate = 0.01;
-                    const fee = failedAmount * feeRate;
-                    const remainingBalance = balance - fee; // Charge the fee even on failure (common tactic in scams)
+                    const fee = parseFloat((failedAmount * feeRate).toFixed(2));
+                    const remainingBalance = balance - fee; 
 
                     const failedTransaction = {
                         id: Date.now(),
                         date: new Date().toLocaleDateString('fr-FR'),
                         recipient: formData.recipientName,
-                        account: formData.iban,
+                        account: maskNumber(formData.iban, 4, 4), // Store masked
                         amount: -fee,
                         type: 'debit',
                         description: 'Frais de virement SWIFT (Échec de transaction)',
@@ -857,8 +1053,8 @@
                     if (remainingBalance >= 0) {
                         await updateClientData(remainingBalance, failedTransaction);
                     } else {
-                        // If fee deduction would make balance negative, just show the message without deducting
                         console.error("Not enough balance to deduct the fee.");
+                        // Handle case where fee itself depletes balance (unlikely with 1% of 800k)
                     }
 
                     // 2. Display the detailed failure message
@@ -871,14 +1067,18 @@
                                     <li>Nom du bénéficiaire: {formData.recipientName}</li>
                                     <li>IBAN / Numéro de Compte: {formData.iban}</li>
                                     <li>Montant Initial: {formatCurrency(failedAmount)}</li>
+                                    <li>Frais Déduits: {formatCurrency(fee)}</li>
                                 </ul>
                                 <p className="mt-2 leading-relaxed">
-                                    Nous vous notifions que la transaction a été *interrompue* en raison de l'application obligatoire de frais de virement SWIFT (International) s'élevant à 1% du montant total. 
+                                    Nous vous notifions que la transaction a été interrompue en raison de l'application obligatoire de frais de virement SWIFT (International) s'élevant à 1% du montant total. 
                                     <span className="font-bold block mt-1">Veuillez contacter votre gestionnaire pour autoriser le paiement de ces frais afin de débloquer le virement.</span>
                                 </p>
                             </div>
                         )
                     });
+                    
+                    // Show AI button after failure
+                    setShowAIBtn(true); 
                     
                     // Reset form after simulated attempt (optional: only amount/security code)
                     setFormData(prev => ({ ...prev, securityCode: '', amount: '' }));
@@ -904,414 +1104,433 @@
                             'bg-green-50 text-green-600 border border-green-200'
                         }`}>
                             {message.text}
+                            {/* AI Explain Fees Button */}
+                            {showAIBtn && message.type === 'error' && (
+                                <div className="mt-3">
+                                    <button
+                                        onClick={handleExplainFees}
+                                        disabled={isBotExplaining}
+                                        className="flex items-center gap-2 bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition-all transform active:scale-[0.98] text-xs"
+                                    >
+                                        {isBotExplaining ? <Loader className="w-4 h-4" /> : <Sparkles className="w-4 h-4"/>}
+                                        {isBotExplaining ? "Analyse..." : "Demander l'explication IA"}
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
-                        <div className="grid md:grid-cols-2 gap-5">
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-slate-700">Code de sécurité</label>
-                                <input type="password" name="securityCode" value={formData.securityCode} onChange={handleChange} className={inputClasses} placeholder="Mot de passe ou Code PIN" />
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Recipient Name */}
+                            <div>
+                                <label htmlFor="recipientName" className="block text-sm font-medium text-slate-700 mb-1">Nom du bénéficiaire</label>
+                                <input 
+                                    type="text" 
+                                    id="recipientName"
+                                    name="recipientName" 
+                                    value={formData.recipientName} 
+                                    onChange={handleChange} 
+                                    className={inputClasses}
+                                    placeholder="Ex: John Smith"
+                                    required
+                                />
                             </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-slate-700">IBAN / Numéro de Compte *</label>
-                                <input type="text" name="iban" value={formData.iban} onChange={handleChange} placeholder="FR76...." className={inputClasses} required />
+                            {/* IBAN */}
+                            <div>
+                                <label htmlFor="iban" className="block text-sm font-medium text-slate-700 mb-1">IBAN / Numéro de Compte</label>
+                                <input 
+                                    type="text" 
+                                    id="iban"
+                                    name="iban" 
+                                    value={formData.iban} 
+                                    onChange={handleChange} 
+                                    className={inputClasses}
+                                    placeholder="FR76XXXXXXXXXXXXX"
+                                    required
+                                />
                             </div>
                         </div>
-
-                        <div className="grid md:grid-cols-3 gap-5">
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-slate-700">Code Banque (BIC / SWIFT)</label>
-                                <input type="text" name="bic" value={formData.bic} onChange={handleChange} className={inputClasses} placeholder="BARCFRPP" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-slate-700">Nom de la banque</label>
-                                <input type="text" name="bankName" value={formData.bankName} onChange={handleChange} className={inputClasses} placeholder="Banque du bénéficiaire" />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-slate-700">Type de virement:</label>
-                                <select name="transferType" value={formData.transferType} onChange={handleChange} className={inputClasses}>
-                                    <option>Virement standard (SEPA)</option>
-                                    <option>Virement instantané (SEPA)</option>
-                                    <option>Virement international (SWIFT)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-semibold text-slate-700">Montant à envoyer (€) *</label>
-                            <div className="relative">
+                        <div className="grid grid-cols-2 gap-6">
+                            {/* Amount */}
+                            <div>
+                                <label htmlFor="amount" className="block text-sm font-medium text-slate-700 mb-1">Montant à transférer (€)</label>
                                 <input 
                                     type="number" 
+                                    id="amount"
                                     name="amount" 
                                     value={formData.amount} 
                                     onChange={handleChange} 
-                                    min="0.01" 
-                                    step="0.01" 
-                                    className="w-full pl-4 pr-12 py-3 rounded-lg border border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition-all text-lg font-medium text-slate-900"
-                                    required 
+                                    className={inputClasses}
+                                    placeholder="804038.00"
+                                    step="0.01"
+                                    required
                                 />
-                                <span className="absolute right-4 top-3.5 text-slate-400 font-bold">EUR</span>
                             </div>
+                            {/* Security Code */}
+                            <div>
+                                <label htmlFor="securityCode" className="block text-sm font-medium text-slate-700 mb-1">Code de Sécurité (6 chiffres)</label>
+                                <input 
+                                    type="password" 
+                                    id="securityCode"
+                                    name="securityCode" 
+                                    value={formData.securityCode} 
+                                    onChange={handleChange} 
+                                    className={inputClasses}
+                                    placeholder="••••••"
+                                    maxLength="6"
+                                    required
+                                />
+                            </div>
+                        </div>
+                        {/* Description / Reason */}
+                        <div>
+                            <label htmlFor="reason" className="block text-sm font-medium text-slate-700 mb-1">Motif du virement (Optionnel)</label>
+                            <input 
+                                type="text" 
+                                id="reason"
+                                name="reason" 
+                                value={formData.reason} 
+                                onChange={handleChange} 
+                                className={inputClasses}
+                                placeholder="Transfert de fonds personnel"
+                            />
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-5">
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-slate-700">Nom du bénéficiaire *</label>
-                                <input type="text" name="recipientName" value={formData.recipientName} onChange={handleChange} className={inputClasses} required />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-semibold text-slate-700">Motif du virement</label>
-                                <input type="text" name="reason" value={formData.reason} onChange={handleChange} className={inputClasses} />
-                            </div>
-                        </div>
-
-                        <div className="pt-4">
-                            <button type="submit" 
-                                className="w-full md:w-auto bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg shadow-sky-500/20 transition-all transform active:scale-[0.98] disabled:bg-sky-300 flex items-center justify-center gap-3"
-                                disabled={isLoading}
-                            >
-                                {isLoading && <Loader className="w-5 h-5" />}
-                                {isLoading ? "En cours..." : "Valider le virement"}
-                            </button>
-                        </div>
+                        {/* Submit Button */}
+                        <button 
+                            type="submit" 
+                            disabled={isLoading || isBotExplaining}
+                            className="w-full bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 px-4 rounded-lg shadow-lg shadow-sky-500/30 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2 disabled:bg-sky-300"
+                        >
+                            {isLoading ? <Loader className="w-5 h-5" /> : <ArrowRightLeft className="w-5 h-5" />}
+                            {isLoading ? "Virement en cours..." : "Confirmer le Virement International"}
+                        </button>
                     </form>
                 </div>
             );
         }
 
-        function ManagerDashboard({ db, auth, userId, userName, onLogout }) {
-            // Manager uses his Firebase UID but displays the client's conversation via the public chat collection
-            // The Manager's view is focused entirely on the Chat Window
+        function CardView({ userName }) {
+            const [isCardVisible, setIsCardVisible] = React.useState(false);
+            const CARD_FULL = INITIAL_DATA.CARD_NUMBER_FULL;
+            const CARD_MASKED = maskNumber(CARD_FULL, 4, 4);
+            const CARD_EXPIRY = '09/27'; // Fictif
+            const CARD_HOLDER = userName.toUpperCase();
+
+            const displayCardNumber = isCardVisible ? CARD_FULL.match(/.{1,4}/g).join(' ') : CARD_MASKED;
+            const displayCVV = isCardVisible ? '456' : '•••';
+            
+            // SVG for the contactless icon (a simple simulation)
+            const ContactlessIcon = (props) => (
+                <svg {...props} width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" className="contactless-icon">
+                    <path d="M7 16V9C7 5.13401 10.134 2 14 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M7 23V23C13.0751 23 18 18.0751 18 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    <path d="M7 30V30C16.9411 30 25 21.9411 25 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+            );
+
             return (
-                <div className="flex flex-col h-screen">
-                    <Header 
-                        userName={userName} 
-                        bankName={INITIAL_DATA.bankName}
-                        onLogout={onLogout}
-                    />
-                    <main className="flex-1 p-4 md:p-8 bg-slate-100 overflow-hidden">
-                        <div className="max-w-4xl mx-auto h-full flex flex-col">
-                            <div className="mb-4 p-4 bg-sky-100 rounded-xl border border-sky-200">
-                                <h1 className="text-2xl font-bold text-sky-800">Espace Gestionnaire</h1>
-                                <p className="text-sky-700">Répondez aux préoccupations du client M. Lacombe via le dialogue ci-dessous.</p>
-                                <p className="text-xs mt-2 text-slate-500">Votre ID (Gestionnaire) : {userId}</p>
+                <div className="space-y-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                    <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                        <CreditCard className="text-sky-500" /> Gestion de ma Carte
+                    </h2>
+                    <p className="text-slate-500 text-sm">Aperçu et contrôle des informations de votre carte bancaire.</p>
+
+                    {/* Simulated Bank Card */}
+                    <div className="max-w-md mx-auto relative transform transition-transform duration-500 rounded-xl shadow-2xl">
+                        <div className="bg-gradient-to-br from-indigo-800 to-sky-700 text-white p-6 rounded-xl h-52 flex flex-col justify-between">
+                            <div className="flex justify-between items-start">
+                                <div className="text-xl font-extrabold tracking-wider">{INITIAL_DATA.bankName}</div>
+                                <ContactlessIcon className="w-8 h-8 text-white/90" />
                             </div>
                             
-                            <div className="flex-1 relative min-h-[50vh] md:min-h-0">
-                                <ChatWindow 
-                                    db={db} 
-                                    auth={auth} 
-                                    userId={userId} // Manager's real Firebase UID
-                                    userName={userName} 
-                                    onClose={() => {}} // No close button on manager main view
-                                    isManager={true}
-                                />
+                            <div className="font-mono text-xl md:text-2xl font-semibold tracking-widest mt-4">
+                                {displayCardNumber}
+                            </div>
+
+                            <div className="flex justify-between items-center text-sm font-medium mt-4">
+                                <div>
+                                    <div className="text-xs text-indigo-200">Titulaire</div>
+                                    <div className="text-sm">{CARD_HOLDER}</div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div>
+                                        <div className="text-xs text-indigo-200">Expire</div>
+                                        <div className="text-sm">{CARD_EXPIRY}</div>
+                                    </div>
+                                    <div className="text-lg font-bold">VISA</div>
+                                </div>
                             </div>
                         </div>
-                    </main>
+                    </div>
+
+                    {/* Card Actions */}
+                    <div className="max-w-md mx-auto p-4 bg-white rounded-xl border border-slate-200 shadow-sm space-y-4">
+                        <div className="flex justify-between items-center">
+                            <p className="text-slate-700 font-medium">Afficher les Détails de la Carte</p>
+                            <button
+                                onClick={() => setIsCardVisible(!isCardVisible)}
+                                className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-3 rounded-lg transition-colors text-sm"
+                            >
+                                {isCardVisible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                {isCardVisible ? 'Masquer' : 'Afficher'}
+                            </button>
+                        </div>
+
+                        {isCardVisible && (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm animate-in fade-in">
+                                <p className="font-bold mb-1">Code de Sécurité (CVV) : <span className="font-mono text-lg ml-1">{displayCVV}</span></p>
+                                <p className="text-xs italic">Attention : Ne partagez jamais ces informations. Ceci est une simulation.</p>
+                            </div>
+                        )}
+                        
+                        <p className="text-sm text-slate-500">Pour des raisons de sécurité, le numéro complet n'est pas affiché par défaut. Utilisez le bouton "Afficher" pour le révéler temporairement.</p>
+                    </div>
+                    
                 </div>
             );
         }
-        
-        function NotificationPanel({ message, onClose }) {
+
+        function ManagerDashboard() {
             return (
-                <div className="absolute top-16 right-4 md:right-6 z-30 w-full max-w-sm animate-in fade-in slide-in-from-top-4 duration-300">
-                    <div className="bg-white rounded-xl shadow-xl border border-sky-100 overflow-hidden">
-                        <div className="bg-sky-500 px-4 py-3 flex justify-between items-center">
-                            <h3 className="text-white font-medium text-sm flex items-center gap-2">
-                                <Bell className="w-4 h-4" /> Information Importante
-                            </h3>
-                            <button onClick={onClose} className="text-white/80 hover:text-white">
-                                <X className="w-4 h-4" />
-                            </button>
+                <div className="p-4 md:p-8">
+                    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in zoom-in-95 duration-300">
+                        <div className="bg-white p-6 rounded-xl border border-sky-200 shadow-lg">
+                            <h2 className="text-2xl font-bold text-sky-800 mb-4 flex items-center gap-2">
+                                <MessageSquare className="w-6 h-6 text-sky-500" /> Interface Gestionnaire
+                            </h2>
+                            <p className="text-slate-600">
+                                Bienvenue, <span className="font-semibold">{INITIAL_DATA.manager.name}</span>. Cette interface est dédiée à la communication et à la gestion de la relation client.
+                            </p>
                         </div>
-                        <div className="p-4 bg-sky-50/50">
-                            <p className="text-sm text-slate-700 leading-relaxed">{message}</p>
+
+                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden min-h-[500px] flex">
+                            {/* The Chat window takes the entire remaining space */}
+                            <ChatWindow 
+                                db={window.db} 
+                                auth={window.auth}
+                                userId={window.auth?.currentUser?.uid || 'manager-id-placeholder'} 
+                                userName={INITIAL_DATA.manager.name} 
+                                onClose={() => {}} // Manager chat doesn't close on the dashboard
+                                isManager={true}
+                            />
                         </div>
                     </div>
                 </div>
             );
         }
         
-        function CardView({ userName }) {
-            const CARD_MASKED = maskNumber(INITIAL_DATA.CARD_NUMBER_FULL, 4, 4);
-
-            return (
-                <div className="animate-in fade-in zoom-in-95 duration-300">
-                    <h2 className="text-xl font-bold text-slate-800 mb-6">Votre Carte Bancaire</h2>
-                    <div className="flex flex-col items-center">
-                        <div className="w-full max-w-[380px] aspect-[1.586] rounded-2xl p-6 relative text-white shadow-2xl overflow-hidden transform transition-transform hover:scale-105 duration-300 group">
-                            <div className="absolute inset-0 bg-gradient-to-bl from-[#2c3e50] to-[#000000] z-0"></div>
-                            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-20 z-0"></div>
-                            <div className="absolute -top-20 -right-20 w-60 h-60 bg-sky-500 rounded-full blur-[60px] opacity-40"></div>
-                            <div className="absolute bottom-0 left-0 w-40 h-40 bg-purple-500 rounded-full blur-[50px] opacity-30"></div>
-                            <div className="relative z-10 h-full flex flex-col justify-between">
-                                <div className="flex justify-between items-start">
-                                    <div className="w-12 h-9 bg-gradient-to-br from-yellow-200 to-yellow-500 rounded-md border border-yellow-600/50 flex items-center justify-center overflow-hidden relative shadow-sm">
-                                        <div className="absolute w-full h-[1px] bg-yellow-800/40 top-1/3"></div>
-                                        <div className="absolute w-full h-[1px] bg-yellow-800/40 bottom-1/3"></div>
-                                        <div className="absolute h-full w-[1px] bg-yellow-800/40 left-1/3"></div>
-                                        <div className="absolute h-full w-[1px] bg-yellow-800/40 right-1/3"></div>
-                                        <div className="w-4 h-4 border border-yellow-800/40 rounded-sm"></div>
-                                    </div>
-                                    <svg className="w-6 h-6 opacity-80 contactless-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
-                                    </svg>
-                                </div>
-                                <div className="mt-4">
-                                    {/* Numéro de carte masqué */}
-                                    <div className="text-xl md:text-2xl font-mono tracking-widest drop-shadow-md">{CARD_MASKED}</div>
-                                </div>
-                                <div className="flex justify-between items-end mt-auto">
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px] uppercase text-slate-300 tracking-wider mb-0.5">Titulaire</span>
-                                        <span className="font-medium tracking-wide uppercase text-sm md:text-base truncate max-w-[200px]">{userName}</span>
-                                    </div>
-                                    <div className="flex flex-col items-center mr-4">
-                                        <span className="text-[8px] uppercase text-slate-300">Expires</span>
-                                        <span className="font-mono text-sm">11/28</span>
-                                    </div>
-                                    <div className="italic font-bold text-2xl tracking-tighter leading-none">
-                                        VISA
-                                        <span className="block text-[8px] not-italic font-normal tracking-normal text-right">Premium</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="mt-8 bg-white p-6 rounded-xl border border-slate-200 shadow-sm w-full max-w-md">
-                            <h3 className="font-semibold text-slate-800 mb-4">Détails de la carte</h3>
-                            <div className="space-y-3 text-sm">
-                                <div className="flex justify-between py-2 border-b border-slate-100">
-                                    <span className="text-slate-500">Statut</span>
-                                    <span className="text-green-600 font-medium flex items-center gap-1">
-                                        <span className="w-2 h-2 rounded-full bg-green-500"></span> Active
-                                    </span>
-                                </div>
-                                <div className="flex justify-between py-2 border-b border-slate-100">
-                                    <span className="text-slate-500">Type</span>
-                                    <span className="text-slate-800">Débit immédiat</span>
-                                </div>
-                                <div className="flex justify-between py-2 border-b border-slate-100">
-                                    <span className="text-slate-500">Plafond hebdomadaire</span>
-                                    <span className="text-slate-800 font-mono">5 000,00 €</span>
-                                </div>
-                                <div className="flex justify-between py-2">
-                                    <span className="text-slate-500">Sans contact</span>
-                                    <span className="text-slate-800">Activé</span>
-                                </div>
-                            </div>
-                            <button className="mt-6 w-full py-2 border border-red-200 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50 transition-colors">
-                                Faire opposition
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            );
-        }
-
         // ==========================================
-        // COMPOSANT PRINCIPAL APP
+        // MAIN APPLICATION COMPONENT
         // ==========================================
         function App() {
-            const [isLoggedIn, setIsLoggedIn] = React.useState(false);
-            const [user, setUser] = React.useState(null);
-            const [role, setRole] = React.useState(null);
-            const [currentView, setCurrentView] = React.useState('dashboard');
-
-            // Client Data States (managed by Firestore now)
-            const [balance, setBalance] = React.useState(INITIAL_DATA.initialBalance);
-            const [transactions, setTransactions] = React.useState(INITIAL_DATA.initialTransactions);
-            const [showNotification, setShowNotification] = React.useState(true); // Show initial notification
-            const [showChat, setShowChat] = React.useState(false);
-
-            const db = window.firebaseReady ? window.db : null;
-            const auth = window.firebaseReady ? window.auth : null;
+            // New state for Firebase Auth readiness and User ID (needed for Firestore paths)
+            const [firebaseDb, setFirebaseDb] = React.useState(null);
+            const [currentUserId, setCurrentUserId] = React.useState(null);
+            const [isAuthReady, setIsAuthReady] = React.useState(false);
             
-            // Derive a stable ID for data access, preferring Firebase UID once logged in
-            const userId = auth?.currentUser?.uid || user?.loginId || null;
-            const clientLoginId = INITIAL_DATA.user.loginId;
+            // Existing states for app data
+            const [user, setUser] = React.useState(null);
+            const [currentView, setCurrentView] = React.useState('dashboard');
+            const [isChatOpen, setIsChatOpen] = React.useState(false);
+            const [notificationActive, setNotificationActive] = React.useState(true);
 
-
-            // Data Listener (Firestore) - Only for client's dashboard data
+            // Dynamic data from Firestore
+            const [clientBalance, setClientBalance] = React.useState(INITIAL_DATA.initialBalance);
+            const [clientTransactions, setClientTransactions] = React.useState(INITIAL_DATA.initialTransactions);
+            
+            // --- Authentication and Firestore Setup ---
             React.useEffect(() => {
-                // Only run for client data, and only if Firebase is ready and the client is effectively the user
-                if (!db || !userId || role !== 'client') return;
+                // Wait for global Firebase objects to be available
+                if (typeof window.firebaseReady === 'undefined' || !window.db || !window.auth) {
+                    console.warn("Firebase not ready or configuration missing.");
+                    return;
+                }
 
-                // Use the static clientLoginId for the document reference to ensure continuity, 
-                // even if the Firebase UID changes (e.g., anonymous sign-in).
-                const docRef = getClientDocRef(db, window.appId, clientLoginId);
+                const auth = window.auth;
+                const db = window.db;
+                setFirebaseDb(db); // Set the DB instance once ready
 
-                // Check and initialize/listen
-                const checkAndListen = async () => {
-                    const docSnap = await window.firebase.getDoc(docRef);
-                    
-                    if (!docSnap.exists()) {
-                        // Initialize data in Firestore if it doesn't exist
-                        console.log("Initializing client data in Firestore.");
-                        const initialData = {
+                // Listen for Auth State Changes
+                const unsubscribeAuth = window.firebase.onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        // If the user object is received, authentication is complete.
+                        setCurrentUserId(user.uid);
+                    } else {
+                        // Should only happen if initial sign-in failed, but set to ready anyway.
+                        // Use a fallback UID if not authenticated (shouldn't happen with custom token/anonymous sign-in)
+                        setCurrentUserId(auth.currentUser?.uid || crypto.randomUUID()); 
+                    }
+                    setIsAuthReady(true);
+                }, (error) => {
+                    console.error("Auth state listener error:", error);
+                    setIsAuthReady(true); // Ensure app doesn't hang on error
+                });
+
+                return () => unsubscribeAuth();
+            }, []); // Run only once on mount
+
+            // --- Data Listener (Runs only after auth is ready and user is logged in as 'client') ---
+            React.useEffect(() => {
+                if (!isAuthReady || !firebaseDb || !user || user.role !== 'client' || !currentUserId) return;
+                
+                const docRef = getClientDocRef(firebaseDb, window.appId, currentUserId);
+
+                const unsubscribeSnapshot = window.firebase.onSnapshot(docRef, (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        setClientBalance(data.balance);
+                        setClientTransactions(data.transactions || INITIAL_DATA.initialTransactions);
+                    } else {
+                        // If the document doesn't exist, initialize it with default data
+                        window.firebase.setDoc(docRef, {
                             balance: INITIAL_DATA.initialBalance,
                             transactions: INITIAL_DATA.initialTransactions,
-                            userName: INITIAL_DATA.user.name,
-                            lastUpdate: window.firebase.serverTimestamp()
-                        };
-                        // Use clientLoginId as the path element for the initial client data document, regardless of auth UID
-                        await window.firebase.setDoc(docRef, initialData, { merge: true });
-                        console.log("Initial data set successfully.");
+                            userId: currentUserId,
+                            created: window.firebase.serverTimestamp()
+                        }, { merge: true }).then(() => {
+                            console.log("Client data initialized in Firestore.");
+                        }).catch(e => console.error("Error initializing client data:", e));
                     }
+                }, (error) => {
+                    console.error("Error fetching client data:", error);
+                });
 
-                    // Start listening for real-time updates
-                    const unsubscribe = window.firebase.onSnapshot(docRef, (doc) => {
-                        if (doc.exists()) {
-                            const data = doc.data();
-                            setBalance(data.balance || INITIAL_DATA.initialBalance);
-                            // Deserialize transactions array
-                            setTransactions(data.transactions || INITIAL_DATA.initialTransactions);
-                        }
-                    }, (error) => {
-                        console.error("Error fetching client data:", error);
-                    });
-                    
-                    return unsubscribe;
-                };
+                return () => unsubscribeSnapshot();
+            }, [isAuthReady, firebaseDb, user, currentUserId]); 
 
-                let unsubscribe;
-                checkAndListen().then(unsub => { unsubscribe = unsub; });
-
-                return () => unsubscribe && unsubscribe();
-            }, [db, userId, role]);
-
-
+            // Handlers
             const handleLoginSuccess = (loggedInUser) => {
                 setUser(loggedInUser);
-                setRole(loggedInUser.role);
-                setIsLoggedIn(true);
-                setCurrentView('dashboard');
-                if (loggedInUser.role === 'manager') {
-                    // Manager's main view is the chat, but we keep currentView as 'dashboard' 
-                    // to prevent Navigation from trying to draw non-existent manager links.
-                    setShowChat(true); 
-                }
+                setIsChatOpen(loggedInUser.role === 'manager'); // Manager starts in the chat view
             };
 
             const handleLogout = () => {
-                setIsLoggedIn(false);
                 setUser(null);
-                setRole(null);
-                setShowNotification(false);
-                setShowChat(false);
+                setCurrentView('dashboard');
+                setIsChatOpen(false);
+                // Optionally sign out from Firebase if needed, but for this simulation, clearing local state is sufficient.
             };
 
-            // Render Manager Dashboard
-            if (role === 'manager') {
+            const handleToggleNotification = () => {
+                setNotificationActive(prev => !prev);
+            };
+
+            // Loading state while waiting for Firebase Auth
+            if (!isAuthReady) {
                 return (
-                    <ManagerDashboard
-                        db={db}
-                        auth={auth}
-                        userId={userId} // Manager's real Firebase UID
-                        userName={INITIAL_DATA.manager.name}
-                        onLogout={handleLogout}
+                    <div className="flex items-center justify-center min-h-screen">
+                        <Loader className="w-8 h-8 text-sky-500" />
+                        <p className="ml-3 text-slate-600">Chargement de la session...</p>
+                    </div>
+                );
+            }
+            
+            // Show Login Page if no user is set
+            if (!user) {
+                return (
+                    <LoginPage 
+                        onLoginSuccess={handleLoginSuccess}
+                        correctClient={INITIAL_DATA.user}
+                        correctManager={INITIAL_DATA.manager}
+                        bankName={INITIAL_DATA.bankName}
                     />
                 );
             }
 
-            // Render Client Dashboard
-            if (role === 'client') {
-                return (
-                    <div className="app-container min-h-screen bg-slate-50 font-sans text-slate-700">
-                        <div className="dashboard-container flex flex-col min-h-screen">
-                            <Header 
-                                userName={INITIAL_DATA.user.name} 
-                                bankName={INITIAL_DATA.bankName}
-                                onLogout={handleLogout}
-                                onToggleNotification={() => setShowNotification(!showNotification)}
-                                notificationActive={showNotification}
-                            />
-                            
-                            {showNotification && (
-                                <NotificationPanel message={INITIAL_DATA.notificationMessage} onClose={() => setShowNotification(false)} />
-                            )}
+            // --- Render Logic for Authenticated User ---
+            const isClient = user.role === 'client';
 
-                            <div className="flex flex-1 relative overflow-auto md:overflow-hidden">
-                                {/* Sidebar Navigation for Desktop / Bottom for Mobile */}
-                                <div className="hidden md:block">
-                                    <Navigation 
-                                        currentView={currentView} 
-                                        setCurrentView={(view) => {
-                                            setCurrentView(view);
-                                            setShowChat(false);
-                                        }}
-                                        onOpenChat={() => setShowChat(true)}
-                                    />
-                                </div>
-                                
-                                <main className="main-content flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50">
-                                    <div className="max-w-4xl mx-auto">
-                                        {showChat ? (
-                                            <ChatWindow 
-                                                db={db} 
-                                                auth={auth}
-                                                // FIX: Pass the client's login ID as the target ID for the chat logic to work consistently
-                                                userId={userId} 
-                                                userName={INITIAL_DATA.user.name} 
-                                                onClose={() => setShowChat(false)} 
-                                                isManager={false}
-                                            />
-                                        ) : (
-                                            <>
-                                                {currentView === 'dashboard' && (
-                                                    <DashboardView 
-                                                        balance={balance} 
-                                                        transactions={transactions} 
-                                                        onOpenChat={() => setShowChat(true)}
-                                                    />
-                                                )}
-                                                {currentView === 'transfer' && (
-                                                    <TransferView 
-                                                        balance={balance} 
-                                                        clientUserId={clientLoginId} // Use the specific login ID to target the correct document
-                                                    />
-                                                )}
-                                                {currentView === 'card' && (
-                                                    <CardView userName={INITIAL_DATA.user.name} />
-                                                )}
-                                            </>
-                                        )}
-                                    </div>
-                                </main>
-                                
-                                {/* Bottom Navigation for Mobile */}
-                                <div className="block md:hidden">
-                                    <Navigation 
-                                        currentView={currentView} 
-                                        setCurrentView={(view) => {
-                                            setCurrentView(view);
-                                            setShowChat(false);
-                                        }}
-                                        onOpenChat={() => setShowChat(true)}
-                                    />
-                                </div>
-                            </div>
-                        </div>
+            if (!isClient) {
+                // Manager View
+                return (
+                    <div className="h-screen flex flex-col">
+                        <Header 
+                            userName={user.name} 
+                            bankName={INITIAL_DATA.bankName} 
+                            onLogout={handleLogout}
+                        />
+                        <main className="flex-1 overflow-y-auto bg-slate-50">
+                            <ManagerDashboard />
+                        </main>
                     </div>
                 );
             }
 
-            // Default to Login Page
+            // Client View (Dashboard + Navigation)
+            const RenderedView = () => {
+                switch (currentView) {
+                    case 'transfer':
+                        return <TransferView balance={clientBalance} clientUserId={currentUserId} />;
+                    case 'card':
+                        return <CardView userName={user.name} />;
+                    case 'dashboard':
+                    default:
+                        return (
+                            <>
+                                {notificationActive && (
+                                    <div className="p-4 bg-sky-50 border border-sky-200 rounded-xl mb-6 shadow-sm animate-in fade-in slide-in-from-top-4">
+                                        <h4 className="font-bold text-sky-700">Notification Importante</h4>
+                                        <p className="text-sm text-sky-600 mt-1">{INITIAL_DATA.notificationMessage}</p>
+                                    </div>
+                                )}
+                                <DashboardView 
+                                    balance={clientBalance} 
+                                    transactions={clientTransactions}
+                                    onOpenChat={() => setIsChatOpen(true)}
+                                />
+                            </>
+                        );
+                }
+            };
+
             return (
-                <LoginPage 
-                    onLoginSuccess={handleLoginSuccess} 
-                    correctClient={INITIAL_DATA.user} 
-                    correctManager={INITIAL_DATA.manager}
-                    bankName={INITIAL_DATA.bankName} 
-                />
+                <div className="h-screen flex flex-col">
+                    <Header 
+                        userName={user.name} 
+                        bankName={INITIAL_DATA.bankName} 
+                        onLogout={handleLogout}
+                        onToggleNotification={handleToggleNotification}
+                        notificationActive={notificationActive}
+                    />
+                    
+                    <main className={`flex-1 overflow-y-auto p-4 md:p-8 bg-slate-50 ${isChatOpen ? 'hidden md:block' : 'main-content'}`}>
+                        <div className="max-w-4xl mx-auto">
+                            <RenderedView />
+                        </div>
+                    </main>
+
+                    {/* Navigation (Fixed at the bottom) */}
+                    {!isChatOpen && (
+                        <Navigation 
+                            currentView={currentView} 
+                            setCurrentView={setCurrentView} 
+                            onOpenChat={() => setIsChatOpen(true)}
+                        />
+                    )}
+
+                    {/* Chat Modal/Screen */}
+                    {isChatOpen && (
+                        <div className={`fixed inset-0 bg-white z-40 md:static md:p-0 md:bg-transparent md:h-auto ${isChatOpen ? 'chat-container-main' : 'hidden'}`}>
+                            <ChatWindow 
+                                db={firebaseDb} 
+                                auth={window.auth}
+                                userId={currentUserId} 
+                                userName={user.name} 
+                                onClose={() => setIsChatOpen(false)}
+                                isManager={false}
+                            />
+                        </div>
+                    )}
+                </div>
             );
         }
 
-        // Rendu de l'application dans l'élément root
-        const container = document.getElementById('root');
-        const root = ReactDOM.createRoot(container);
-        root.render(<App />);
+        // ==========================================
+        // RENDER
+        // ==========================================
+        ReactDOM.render(<App />, document.getElementById('root'));
     </script>
 </body>
 </html>
